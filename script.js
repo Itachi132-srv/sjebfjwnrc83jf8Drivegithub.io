@@ -7,18 +7,6 @@ let targetCarRotationZ = 0;
 
 const keys = { up: false, down: false, left: false, right: false };
 
-// Sound Effects setup with seamless continuous loop
-const carSound = new Audio('car.mp3');
-carSound.loop = true;
-carSound.volume = 0.6;
-carSound.addEventListener('ended', function() {
-    this.currentTime = 0;
-    this.play().catch(() => {});
-});
-
-const breakSound = new Audio('break.mp3');
-breakSound.volume = 0.7;
-
 init();
 animate();
 
@@ -187,14 +175,7 @@ function setupControls() {
         const el = document.getElementById(id);
         if (!el) return;
         
-        const pressOn = (e) => { 
-            e.preventDefault(); 
-            keys[keyName] = true; 
-            el.classList.add('active'); 
-            if (carSound.paused) {
-                carSound.play().catch(() => {});
-            }
-        };
+        const pressOn = (e) => { e.preventDefault(); keys[keyName] = true; el.classList.add('active'); };
         const pressOff = (e) => { e.preventDefault(); keys[keyName] = false; el.classList.remove('active'); };
 
         el.addEventListener('mousedown', pressOn);
@@ -210,7 +191,7 @@ function setupControls() {
     bindButton('btn-right', 'right');
 
     window.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowUp' || e.key === 'w') { keys.up = true; if (carSound.paused) carSound.play().catch(()=>{}); }
+        if (e.key === 'ArrowUp' || e.key === 'w') keys.up = true;
         if (e.key === 'ArrowDown' || e.key === 's') keys.down = true;
         if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
         if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
@@ -229,27 +210,13 @@ function animate() {
 
     requestAnimationFrame(animate);
 
-    // Acceleration physics & braking sound
+    // Acceleration physics
     if (keys.up) {
         speed = Math.min(speed + acceleration, maxSpeed);
     } else if (keys.down) {
         speed = Math.max(speed - deceleration * 2, 0);
-        if (breakSound.paused && speed > 0.1) {
-            breakSound.currentTime = 0;
-            breakSound.play().catch(() => {});
-        }
     } else {
         speed = Math.max(speed - deceleration, 0);
-    }
-
-    // Engine sound continuous playback & pitch tuning based on speed
-    if (speed > 0.02) {
-        if (carSound.paused) {
-            carSound.play().catch(() => {});
-        }
-        carSound.playbackRate = 0.7 + (speed / maxSpeed) * 0.9;
-    } else {
-        carSound.pause();
     }
 
     // Steering & smooth banking tilt physics (ulmat di gai direction match karne ke liye)
@@ -302,7 +269,6 @@ function animate() {
 
 function gameOver() {
     isGameOver = true;
-    carSound.pause();
     const finalDistEl = document.getElementById('final-dist');
     const gameOverEl = document.getElementById('game-over');
     if (finalDistEl) finalDistEl.innerText = distance;
@@ -325,4 +291,3 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
-
