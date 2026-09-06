@@ -7,7 +7,7 @@ let targetCarRotationZ = 0;
 
 const keys = { up: false, down: false, left: false, right: false };
 
-// Sound Effects setup with continuous seamless looping
+// Sound Effects setup with seamless continuous loop
 const carSound = new Audio('car.mp3');
 carSound.loop = true;
 carSound.volume = 0.6;
@@ -23,12 +23,15 @@ init();
 animate();
 
 function init() {
+    // Scene & Cinematic Sunset Desert Fog
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0xff9944);
     scene.fog = new THREE.FogExp2(0xff9944, 0.012);
 
+    // Camera
     camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
 
+    // Renderer setup with high performance & shadows
     renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -38,6 +41,7 @@ function init() {
     renderer.toneMappingExposure = 1.3;
     document.body.appendChild(renderer.domElement);
 
+    // Lighting
     const ambientLight = new THREE.AmbientLight(0xffeedd, 0.7);
     scene.add(ambientLight);
 
@@ -55,6 +59,7 @@ function init() {
     sunLight.shadow.camera.bottom = -d;
     scene.add(sunLight);
 
+    // Desert Ground Environment
     const groundGeo = new THREE.PlaneGeometry(3000, 3000);
     const groundMat = new THREE.MeshStandardMaterial({ color: 0xc28d51, roughness: 0.95 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -62,15 +67,20 @@ function init() {
     ground.position.y = -0.1;
     scene.add(ground);
 
+    // Build Initial Road Segments
     for (let i = 0; i < 18; i++) {
         createRoadSegment(-i * 40);
     }
 
+    // Load Car using Car.mtl and Car.obj
     createCar();
+
+    // Controls Setup
     setupControls();
     window.addEventListener('resize', onWindowResize);
 }
 
+// Realistic procedural asphalt texture
 function createAsphaltTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -109,6 +119,7 @@ function createRoadSegment(zPos) {
     road.receiveShadow = true;
     roadGroup.add(road);
 
+    // Center Dashed Lines
     for (let j = -18; j < 20; j += 6) {
         const lineGeo = new THREE.PlaneGeometry(0.3, 3);
         const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -118,6 +129,7 @@ function createRoadSegment(zPos) {
         roadGroup.add(line);
     }
 
+    // Side Railings
     const railGeo = new THREE.BoxGeometry(0.4, 0.8, 40);
     const railMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.3 });
     
@@ -153,8 +165,9 @@ function createCar() {
                 }
             });
 
-            // Car ko bilkul seedha direction mein set kiya hai (front samne ki taraf)
+            // Car ko seedha karne ke liye 180 degrees (Math.PI) rotate kar diya hai
             object.rotation.y = Math.PI; 
+
             object.scale.set(1.2, 1.2, 1.2);
             object.position.set(0, 0, 0);
             car.add(object);
@@ -178,17 +191,11 @@ function setupControls() {
             e.preventDefault(); 
             keys[keyName] = true; 
             el.classList.add('active'); 
-
             if (carSound.paused) {
                 carSound.play().catch(() => {});
             }
         };
-
-        const pressOff = (e) => { 
-            e.preventDefault(); 
-            keys[keyName] = false; 
-            el.classList.remove('active'); 
-        };
+        const pressOff = (e) => { e.preventDefault(); keys[keyName] = false; el.classList.remove('active'); };
 
         el.addEventListener('mousedown', pressOn);
         el.addEventListener('mouseup', pressOff);
@@ -222,6 +229,7 @@ function animate() {
 
     requestAnimationFrame(animate);
 
+    // Acceleration physics & braking sound
     if (keys.up) {
         speed = Math.min(speed + acceleration, maxSpeed);
     } else if (keys.down) {
@@ -234,6 +242,7 @@ function animate() {
         speed = Math.max(speed - deceleration, 0);
     }
 
+    // Engine sound continuous playback & pitch tuning based on speed
     if (speed > 0.02) {
         if (carSound.paused) {
             carSound.play().catch(() => {});
@@ -243,7 +252,7 @@ function animate() {
         carSound.pause();
     }
 
-    // Correct steering directions matching forward view
+    // Steering & smooth banking tilt physics (ulmat di gai direction match karne ke liye)
     if (keys.left && car.position.x < 7) {
         car.position.x += 0.18;
         targetCarRotationZ = -0.1;
@@ -256,6 +265,7 @@ function animate() {
 
     car.rotation.z = THREE.MathUtils.lerp(car.rotation.z, targetCarRotationZ, 0.15);
 
+    // Infinite road movement and recycling
     if (speed > 0) {
         distance += Math.round(speed * 12);
         roadSegments.forEach(segment => {
@@ -270,15 +280,18 @@ function animate() {
         });
     }
 
+    // Dynamic FOV speed sensation effect
     const targetFov = 65 + (speed * 8);
     camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, 0.1);
     camera.updateProjectionMatrix();
 
+    // Smooth camera follow (peechay se camera set kiya hai)
     camera.position.x = car.position.x * 0.4;
     camera.position.y = THREE.MathUtils.lerp(camera.position.y, car.position.y + 3.2, 0.1);
     camera.position.z = THREE.MathUtils.lerp(camera.position.z, car.position.z - 6.5, 0.1);
     camera.lookAt(car.position.x, car.position.y + 0.8, car.position.z + 2.5);
 
+    // HUD Update
     const speedEl = document.getElementById('speed-val');
     const distEl = document.getElementById('dist-val');
     if (speedEl) speedEl.innerText = Math.round(speed * 140);
