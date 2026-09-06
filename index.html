@@ -54,7 +54,6 @@
             gap: 15px;
             pointer-events: auto;
         }
-        /* Custom cool gray buttons without emojis */
         .btn {
             width: 75px;
             height: 75px;
@@ -105,7 +104,6 @@
             cursor: pointer;
             margin-top: 15px;
         }
-        /* Mobile Portrait Warning Notice */
         #orientation-notice {
             position: fixed;
             top: 0;
@@ -141,14 +139,15 @@
         <div class="hud-card">Distance: <span id="dist-val">0</span> m</div>
     </div>
 
+    <!-- Controls swapped: Steering on Left, Accel/Brake on Right -->
     <div id="controls">
-        <div class="control-group">
-            <div class="btn" id="btn-up">ACCEL</div>
-            <div class="btn" id="btn-down">BRAKE</div>
-        </div>
         <div class="control-group">
             <div class="btn" id="btn-left">LEFT</div>
             <div class="btn" id="btn-right">RIGHT</div>
+        </div>
+        <div class="control-group">
+            <div class="btn" id="btn-up">ACCEL</div>
+            <div class="btn" id="btn-down">BRAKE</div>
         </div>
     </div>
 
