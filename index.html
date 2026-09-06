@@ -41,43 +41,43 @@
         }
         #controls {
             position: absolute;
-            bottom: 20px;
+            bottom: 25px;
             width: 100%;
             display: flex;
             justify-content: space-between;
-            padding: 0 30px;
+            padding: 0 40px;
             pointer-events: none;
             z-index: 5;
         }
         .control-group {
             display: flex;
-            gap: 15px;
+            gap: 20px;
             pointer-events: auto;
         }
-        /* Custom cool gray buttons without emojis */
+        /* Cool Metallic Style matching your reference image */
         .btn {
-            width: 75px;
-            height: 75px;
-            background: linear-gradient(135deg, #3a3a3a, #222);
-            border: 2px solid #555;
-            border-radius: 16px;
-            color: #ddd;
-            font-size: 14px;
+            width: 70px;
+            height: 85px;
+            background: linear-gradient(135deg, rgba(220,220,220,0.85), rgba(150,150,150,0.75));
+            border: 2px solid rgba(255,255,255,0.6);
+            border-radius: 12px;
+            color: #222;
+            font-size: 24px;
             font-weight: bold;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-            transition: transform 0.05s, background 0.05s, border-color 0.05s;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4), inset 0 2px 5px rgba(255,255,255,0.8);
+            transition: transform 0.05s, background 0.05s;
             outline: none;
+            backdrop-filter: blur(4px);
         }
         .btn:active, .btn.active {
-            background: linear-gradient(135deg, #555, #333);
-            border-color: #888;
-            color: #fff;
+            background: linear-gradient(135deg, rgba(130,130,130,0.9), rgba(100,100,100,0.9));
             transform: scale(0.92);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.6);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.6), inset 0 1px 3px rgba(0,0,0,0.5);
+            color: #fff;
         }
         #game-over {
             position: absolute;
@@ -105,7 +105,6 @@
             cursor: pointer;
             margin-top: 15px;
         }
-        /* Mobile Portrait Warning Notice */
         #orientation-notice {
             position: fixed;
             top: 0;
@@ -143,12 +142,12 @@
 
     <div id="controls">
         <div class="control-group">
-            <div class="btn" id="btn-up">ACCEL</div>
-            <div class="btn" id="btn-down">BRAKE</div>
+            <div class="btn" id="btn-left">&larr;</div>
+            <div class="btn" id="btn-right">&rarr;</div>
         </div>
         <div class="control-group">
-            <div class="btn" id="btn-left">LEFT</div>
-            <div class="btn" id="btn-right">RIGHT</div>
+            <div class="btn" id="btn-down">BRK</div>
+            <div class="btn" id="btn-up">ACC</div>
         </div>
     </div>
 
@@ -158,7 +157,6 @@
         <button onclick="restartGame()">Play Again</button>
     </div>
 
-    <!-- Three.js and Loaders -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/MTLLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
