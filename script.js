@@ -13,15 +13,12 @@ init();
 animate();
 
 function init() {
-    // Scene & Cinematic Desert Sunset Fog
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0xff9944);
     scene.fog = new THREE.FogExp2(0xff9944, 0.01);
 
-    // Camera
     camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-    // Renderer setup with shadows & metallic tone mapping
     renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -31,11 +28,10 @@ function init() {
     renderer.toneMappingExposure = 1.3;
     document.body.appendChild(renderer.domElement);
 
-    // Lighting (Bright Sun for Metallic Reflections)
-    const ambientLight = new THREE.AmbientLight(0xffeedd, 0.8);
+    const ambientLight = new THREE.AmbientLight(0xffeedd, 0.9);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xfffaee, 1.6);
+    const sunLight = new THREE.DirectionalLight(0xfffaee, 1.8);
     sunLight.position.set(80, 150, 50);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.width = 2048;
@@ -49,29 +45,24 @@ function init() {
     sunLight.shadow.camera.bottom = -d;
     scene.add(sunLight);
 
-    // Desert Ground
     const groundGeo = new THREE.PlaneGeometry(4000, 4000);
     const groundMat = new THREE.MeshStandardMaterial({ color: 0xc28d51, roughness: 0.95 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.1;
+    ground.position.y = -0.2;
     scene.add(ground);
 
-    // Build Initial Double Road Segments
     for (let i = 0; i < 20; i++) {
         createRoadSegment(-i * 40);
     }
 
-    // Load Player Car & Traffic Cars
     createPlayerCar();
     loadTrafficTemplates();
 
-    // Controls Setup
     setupControls();
     window.addEventListener('resize', onWindowResize);
 }
 
-// Procedural asphalt texture for the road
 function createAsphaltTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -99,7 +90,6 @@ function createAsphaltTexture() {
 function createRoadSegment(zPos) {
     const roadGroup = new THREE.Group();
     
-    // Double Road (Wider width = 30)
     const roadGeo = new THREE.PlaneGeometry(30, 40);
     const roadMat = new THREE.MeshStandardMaterial({ 
         map: createAsphaltTexture(), 
@@ -111,32 +101,31 @@ function createRoadSegment(zPos) {
     road.receiveShadow = true;
     roadGroup.add(road);
 
-    // Center Divider Island / Barrier
-    const dividerGeo = new THREE.BoxGeometry(1.2, 0.5, 40);
-    const dividerMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.5 });
+    // Center divider with safe height to prevent road glitching (Z-fighting)
+    const dividerGeo = new THREE.BoxGeometry(1.2, 0.4, 40);
+    const dividerMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.5, metalness: 0.5 });
     const divider = new THREE.Mesh(dividerGeo, dividerMat);
-    divider.position.set(0, 0.25, 0);
+    divider.position.set(0, 0.2, 0);
     divider.castShadow = true;
     divider.receiveShadow = true;
     roadGroup.add(divider);
 
-    // Lane Markings
+    // Lane markings with safe height y = 0.05
     for (let j = -18; j < 20; j += 6) {
         const lineGeo = new THREE.PlaneGeometry(0.3, 3);
         const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
         
         const line1 = new THREE.Mesh(lineGeo, lineMat);
         line1.rotation.x = -Math.PI / 2;
-        line1.position.set(-7.5, 0.02, j);
+        line1.position.set(-7.5, 0.05, j);
         roadGroup.add(line1);
 
         const line2 = new THREE.Mesh(lineGeo, lineMat);
         line2.rotation.x = -Math.PI / 2;
-        line2.position.set(7.5, 0.02, j);
+        line2.position.set(7.5, 0.05, j);
         roadGroup.add(line2);
     }
 
-    // Outer Side Railings
     const railGeo = new THREE.BoxGeometry(0.4, 0.8, 40);
     const railMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.3 });
     
@@ -162,11 +151,11 @@ function createPlayerCar() {
     mtlLoader.load('sdxcar.mtl', function (materials) {
         materials.preload();
         
-        // Metallic & glossy finish for player car
         for (let matName in materials.materials) {
             let mat = materials.materials[matName];
-            mat.metalness = 0.7;
+            mat.metalness = 0.8;
             mat.roughness = 0.2;
+            mat.side = THREE.DoubleSide;
         }
 
         const objLoader = new THREE.OBJLoader();
@@ -176,21 +165,39 @@ function createPlayerCar() {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
+                    if (!child.material || child.material.length === 0) {
+                        child.material = new THREE.MeshStandardMaterial({ color: 0x3366ff, metalness: 0.8, roughness: 0.2 });
+                    }
                 }
             });
 
-            object.scale.set(1.2, 1.2, 1.2);
-            object.position.set(0, 0, 0);
+            // Center and scale properly
+            const box = new THREE.Box3().setFromObject(object);
+            const center = box.getCenter(new THREE.Vector3());
+            object.position.sub(center);
+            object.position.y += (box.max.y - box.min.y) / 2;
+
             car.add(object);
         }, undefined, function (error) {
             console.error('Error loading sdxcar.obj:', error);
+            fallbackCarModel();
         });
     }, undefined, function (error) {
         console.error('Error loading sdxcar.mtl:', error);
+        fallbackCarModel();
     });
 
     car.position.set(0, 0, 0);
     scene.add(car);
+}
+
+function fallbackCarModel() {
+    const geo = new THREE.BoxGeometry(1.8, 0.8, 3.8);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x2266ff, metalness: 0.8, roughness: 0.2 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.y = 0.4;
+    mesh.castShadow = true;
+    car.add(mesh);
 }
 
 function loadTrafficTemplates() {
@@ -200,8 +207,9 @@ function loadTrafficTemplates() {
 
         for (let matName in materials.materials) {
             let mat = materials.materials[matName];
-            mat.metalness = 0.5;
+            mat.metalness = 0.6;
             mat.roughness = 0.3;
+            mat.side = THREE.DoubleSide;
         }
 
         const objLoader = new THREE.OBJLoader();
@@ -211,23 +219,54 @@ function loadTrafficTemplates() {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
-                    trafficTemplates.push(child.clone());
+                    
+                    const singleCarGroup = new THREE.Group();
+                    const cloneMesh = child.clone();
+                    
+                    const box = new THREE.Box3().setFromObject(cloneMesh);
+                    const center = box.getCenter(new THREE.Vector3());
+                    cloneMesh.position.sub(center);
+                    cloneMesh.position.y += (box.max.y - box.min.y) / 2;
+                    
+                    singleCarGroup.add(cloneMesh);
+                    trafficTemplates.push(singleCarGroup);
                 }
             });
 
+            if (trafficTemplates.length === 0) {
+                createFallbackTrafficTemplates();
+            }
             spawnInitialTraffic();
         }, undefined, function (error) {
             console.error('Error loading traffic cars:', error);
+            createFallbackTrafficTemplates();
+            spawnInitialTraffic();
         });
     }, undefined, function (error) {
         console.error('Error loading traffic materials:', error);
+        createFallbackTrafficTemplates();
+        spawnInitialTraffic();
     });
+}
+
+function createFallbackTrafficTemplates() {
+    for (let i = 0; i < 4; i++) {
+        const group = new THREE.Group();
+        const geo = new THREE.BoxGeometry(1.8, 0.8, 3.8);
+        const colors = [0xff3333, 0x33ff33, 0xffff33, 0x33ffff];
+        const mat = new THREE.MeshStandardMaterial({ color: colors[i], metalness: 0.6, roughness: 0.3 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.y = 0.4;
+        mesh.castShadow = true;
+        group.add(mesh);
+        trafficTemplates.push(group);
+    }
 }
 
 function spawnInitialTraffic() {
     if (trafficTemplates.length === 0) return;
     for (let i = 0; i < 8; i++) {
-        spawnTrafficCar(-120 - i * 50);
+        spawnTrafficCar(-100 - i * 45);
     }
 }
 
@@ -237,15 +276,14 @@ function spawnTrafficCar(zPos) {
     const template = trafficTemplates[Math.floor(Math.random() * trafficTemplates.length)];
     const trafficMesh = template.clone();
 
-    // Available lanes on double road
     const lanes = [-11, -4, 4, 11];
     const laneX = lanes[Math.floor(Math.random() * lanes.length)];
 
-    trafficMesh.scale.set(1.2, 1.2, 1.2);
+    trafficMesh.scale.set(1.1, 1.1, 1.1);
     trafficMesh.position.set(laneX, 0, zPos);
     
     trafficMesh.userData = { 
-        speed: 0.4 + Math.random() * 0.4 
+        speed: 0.35 + Math.random() * 0.35 
     };
 
     scene.add(trafficMesh);
@@ -300,7 +338,6 @@ function animate() {
         speed = Math.max(speed - deceleration, 0);
     }
 
-    // Wider steering boundaries for double road (-13 to 13)
     if (keys.left && car.position.x > -13) {
         car.position.x -= 0.18;
         targetCarRotationZ = 0.1;
@@ -313,7 +350,6 @@ function animate() {
 
     car.rotation.z = THREE.MathUtils.lerp(car.rotation.z, targetCarRotationZ, 0.15);
 
-    // Infinite road movement & recycling
     if (speed > 0) {
         distance += Math.round(speed * 12);
         roadSegments.forEach(segment => {
@@ -327,7 +363,6 @@ function animate() {
             }
         });
 
-        // Traffic forward movement & recycling
         trafficCars.forEach(tc => {
             tc.position.z += (speed + tc.userData.speed);
         });
@@ -335,14 +370,13 @@ function animate() {
         trafficCars.forEach(tc => {
             if (tc.position.z > 20) {
                 const furthestZ = Math.min(...trafficCars.map(t => t.position.z));
-                tc.position.z = furthestZ - (60 + Math.random() * 40);
+                tc.position.z = furthestZ - (50 + Math.random() * 40);
                 
                 const lanes = [-11, -4, 4, 11];
                 tc.position.x = lanes[Math.floor(Math.random() * lanes.length)];
             }
         });
 
-        // Collision Detection with Traffic Cars
         trafficCars.forEach(tc => {
             const dx = Math.abs(car.position.x - tc.position.x);
             const dz = Math.abs(car.position.z - tc.position.z);
@@ -383,9 +417,9 @@ function restartGame() {
     distance = 0;
     car.position.set(0, 0, 0);
 
-    let zReset = -100;
+    let zReset = -90;
     trafficCars.forEach(tc => {
-        zReset -= 50;
+        zReset -= 45;
         tc.position.z = zReset;
         const lanes = [-11, -4, 4, 11];
         tc.position.x = lanes[Math.floor(Math.random() * lanes.length)];
@@ -402,3 +436,4 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
+
