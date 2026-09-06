@@ -7,19 +7,24 @@ let targetCarRotationZ = 0;
 
 const keys = { up: false, down: false, left: false, right: false };
 
+// Sound Effects setup
+const carSound = new Audio('car.mp3');
+carSound.loop = true;
+carSound.volume = 0.5;
+
+const breakSound = new Audio('break.mp3');
+breakSound.volume = 0.7;
+
 init();
 animate();
 
 function init() {
-    // Scene & Cinematic Sunset Desert Fog
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0xff9944);
     scene.fog = new THREE.FogExp2(0xff9944, 0.012);
 
-    // Camera
     camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-    // Renderer setup with high performance & shadows
     renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -29,7 +34,6 @@ function init() {
     renderer.toneMappingExposure = 1.3;
     document.body.appendChild(renderer.domElement);
 
-    // Lighting
     const ambientLight = new THREE.AmbientLight(0xffeedd, 0.7);
     scene.add(ambientLight);
 
@@ -47,7 +51,6 @@ function init() {
     sunLight.shadow.camera.bottom = -d;
     scene.add(sunLight);
 
-    // Desert Ground Environment
     const groundGeo = new THREE.PlaneGeometry(3000, 3000);
     const groundMat = new THREE.MeshStandardMaterial({ color: 0xc28d51, roughness: 0.95 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -55,20 +58,15 @@ function init() {
     ground.position.y = -0.1;
     scene.add(ground);
 
-    // Build Initial Road Segments
     for (let i = 0; i < 18; i++) {
         createRoadSegment(-i * 40);
     }
 
-    // Load Car using Car.mtl and Car.obj
     createCar();
-
-    // Controls Setup
     setupControls();
     window.addEventListener('resize', onWindowResize);
 }
 
-// Realistic procedural asphalt texture
 function createAsphaltTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -107,7 +105,6 @@ function createRoadSegment(zPos) {
     road.receiveShadow = true;
     roadGroup.add(road);
 
-    // Center Dashed Lines
     for (let j = -18; j < 20; j += 6) {
         const lineGeo = new THREE.PlaneGeometry(0.3, 3);
         const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -117,7 +114,6 @@ function createRoadSegment(zPos) {
         roadGroup.add(line);
     }
 
-    // Side Railings
     const railGeo = new THREE.BoxGeometry(0.4, 0.8, 40);
     const railMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.3 });
     
@@ -153,6 +149,7 @@ function createCar() {
                 }
             });
 
+            object.rotation.y = Math.PI; 
             object.scale.set(1.2, 1.2, 1.2);
             object.position.set(0, 0, 0);
             car.add(object);
@@ -172,8 +169,22 @@ function setupControls() {
         const el = document.getElementById(id);
         if (!el) return;
         
-        const pressOn = (e) => { e.preventDefault(); keys[keyName] = true; el.classList.add('active'); };
-        const pressOff = (e) => { e.preventDefault(); keys[keyName] = false; el.classList.remove('active'); };
+        const pressOn = (e) => { 
+            e.preventDefault(); 
+            keys[keyName] = true; 
+            el.classList.add('active'); 
+
+            // Browser audio restriction ko unlock karne ke liye user interaction par play call karna zaroori hai
+            if (carSound.paused && speed > 0) {
+                carSound.play().catch(() => {});
+            }
+        };
+
+        const pressOff = (e) => { 
+            e.preventDefault(); 
+            keys[keyName] = false; 
+            el.classList.remove('active'); 
+        };
 
         el.addEventListener('mousedown', pressOn);
         el.addEventListener('mouseup', pressOff);
@@ -188,7 +199,7 @@ function setupControls() {
     bindButton('btn-right', 'right');
 
     window.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowUp' || e.key === 'w') keys.up = true;
+        if (e.key === 'ArrowUp' || e.key === 'w') { keys.up = true; if (carSound.paused) carSound.play().catch(()=>{}); }
         if (e.key === 'ArrowDown' || e.key === 's') keys.down = true;
         if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
         if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
@@ -207,29 +218,43 @@ function animate() {
 
     requestAnimationFrame(animate);
 
-    // Acceleration physics
+    // Acceleration & Sound Handling
     if (keys.up) {
         speed = Math.min(speed + acceleration, maxSpeed);
     } else if (keys.down) {
         speed = Math.max(speed - deceleration * 2, 0);
+        // Play break sound when braking
+        if (breakSound.paused && speed > 0.1) {
+            breakSound.currentTime = 0;
+            breakSound.play().catch(() => {});
+        }
     } else {
         speed = Math.max(speed - deceleration, 0);
     }
 
+    // Handle Car Engine Sound State & Pitch based on Speed
+    if (speed > 0.05) {
+        if (carSound.paused) {
+            carSound.play().catch(() => {});
+        }
+        carSound.playbackRate = 0.7 + (speed / maxSpeed) * 0.8;
+    } else {
+        carSound.pause();
+    }
+
     // Steering & smooth banking tilt physics
-    if (keys.left && car.position.x > -7) {
-        car.position.x -= 0.18;
-        targetCarRotationZ = 0.1;
-    } else if (keys.right && car.position.x < 7) {
+    if (keys.left && car.position.x < 7) {
         car.position.x += 0.18;
         targetCarRotationZ = -0.1;
+    } else if (keys.right && car.position.x > -7) {
+        car.position.x -= 0.18;
+        targetCarRotationZ = 0.1;
     } else {
         targetCarRotationZ = 0;
     }
 
     car.rotation.z = THREE.MathUtils.lerp(car.rotation.z, targetCarRotationZ, 0.15);
 
-    // Infinite road movement and recycling
     if (speed > 0) {
         distance += Math.round(speed * 12);
         roadSegments.forEach(segment => {
@@ -244,18 +269,15 @@ function animate() {
         });
     }
 
-    // Dynamic FOV speed sensation effect
     const targetFov = 65 + (speed * 8);
     camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, 0.1);
     camera.updateProjectionMatrix();
 
-    // Smooth camera follow
     camera.position.x = car.position.x * 0.4;
     camera.position.y = THREE.MathUtils.lerp(camera.position.y, car.position.y + 3.2, 0.1);
-    camera.position.z = THREE.MathUtils.lerp(camera.position.z, car.position.z + 6.5, 0.1);
-    camera.lookAt(car.position.x, car.position.y + 0.8, car.position.z - 2.5);
+    camera.position.z = THREE.MathUtils.lerp(camera.position.z, car.position.z - 6.5, 0.1);
+    camera.lookAt(car.position.x, car.position.y + 0.8, car.position.z + 2.5);
 
-    // HUD Update
     const speedEl = document.getElementById('speed-val');
     const distEl = document.getElementById('dist-val');
     if (speedEl) speedEl.innerText = Math.round(speed * 140);
@@ -266,6 +288,7 @@ function animate() {
 
 function gameOver() {
     isGameOver = true;
+    carSound.pause();
     const finalDistEl = document.getElementById('final-dist');
     const gameOverEl = document.getElementById('game-over');
     if (finalDistEl) finalDistEl.innerText = distance;
