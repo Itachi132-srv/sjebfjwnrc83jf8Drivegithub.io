@@ -153,9 +153,6 @@ function createCar() {
                 }
             });
 
-            // Car ko seedha karne ke liye 180 degrees (Math.PI) rotate kar diya hai
-            object.rotation.y = Math.PI; 
-
             object.scale.set(1.2, 1.2, 1.2);
             object.position.set(0, 0, 0);
             car.add(object);
@@ -219,13 +216,13 @@ function animate() {
         speed = Math.max(speed - deceleration, 0);
     }
 
-    // Steering & smooth banking tilt physics (ulmat di gai direction match karne ke liye)
-    if (keys.left && car.position.x < 7) {
-        car.position.x += 0.18;
-        targetCarRotationZ = -0.1;
-    } else if (keys.right && car.position.x > -7) {
+    // Steering & smooth banking tilt physics
+    if (keys.left && car.position.x > -7) {
         car.position.x -= 0.18;
         targetCarRotationZ = 0.1;
+    } else if (keys.right && car.position.x < 7) {
+        car.position.x += 0.18;
+        targetCarRotationZ = -0.1;
     } else {
         targetCarRotationZ = 0;
     }
@@ -252,11 +249,11 @@ function animate() {
     camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, 0.1);
     camera.updateProjectionMatrix();
 
-    // Smooth camera follow (peechay se camera set kiya hai)
+    // Smooth camera follow
     camera.position.x = car.position.x * 0.4;
     camera.position.y = THREE.MathUtils.lerp(camera.position.y, car.position.y + 3.2, 0.1);
-    camera.position.z = THREE.MathUtils.lerp(camera.position.z, car.position.z - 6.5, 0.1);
-    camera.lookAt(car.position.x, car.position.y + 0.8, car.position.z + 2.5);
+    camera.position.z = THREE.MathUtils.lerp(camera.position.z, car.position.z + 6.5, 0.1);
+    camera.lookAt(car.position.x, car.position.y + 0.8, car.position.z - 2.5);
 
     // HUD Update
     const speedEl = document.getElementById('speed-val');
