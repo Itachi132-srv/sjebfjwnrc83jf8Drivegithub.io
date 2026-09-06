@@ -7,10 +7,14 @@ let targetCarRotationZ = 0;
 
 const keys = { up: false, down: false, left: false, right: false };
 
-// Sound Effects setup
+// Sound Effects setup with continuous seamless looping
 const carSound = new Audio('car.mp3');
 carSound.loop = true;
 carSound.volume = 0.6;
+carSound.addEventListener('ended', function() {
+    this.currentTime = 0;
+    this.play().catch(() => {});
+});
 
 const breakSound = new Audio('break.mp3');
 breakSound.volume = 0.7;
@@ -149,8 +153,8 @@ function createCar() {
                 }
             });
 
-            // Rotation 0 taake car samne ki taraf munh karke chale (peeche se view aaye)
-            object.rotation.y = 0; 
+            // Car ko bilkul seedha direction mein set kiya hai (front samne ki taraf)
+            object.rotation.y = Math.PI; 
             object.scale.set(1.2, 1.2, 1.2);
             object.position.set(0, 0, 0);
             car.add(object);
@@ -230,7 +234,6 @@ function animate() {
         speed = Math.max(speed - deceleration, 0);
     }
 
-    // Engine sound continuous playback & pitch tuning
     if (speed > 0.02) {
         if (carSound.paused) {
             carSound.play().catch(() => {});
@@ -240,13 +243,13 @@ function animate() {
         carSound.pause();
     }
 
-    // Correct steering directions
-    if (keys.left && car.position.x > -7) {
-        car.position.x -= 0.18;
-        targetCarRotationZ = 0.1;
-    } else if (keys.right && car.position.x < 7) {
+    // Correct steering directions matching forward view
+    if (keys.left && car.position.x < 7) {
         car.position.x += 0.18;
         targetCarRotationZ = -0.1;
+    } else if (keys.right && car.position.x > -7) {
+        car.position.x -= 0.18;
+        targetCarRotationZ = 0.1;
     } else {
         targetCarRotationZ = 0;
     }
@@ -271,11 +274,10 @@ function animate() {
     camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, 0.1);
     camera.updateProjectionMatrix();
 
-    // Camera perfectly positioned behind the car
     camera.position.x = car.position.x * 0.4;
     camera.position.y = THREE.MathUtils.lerp(camera.position.y, car.position.y + 3.2, 0.1);
-    camera.position.z = THREE.MathUtils.lerp(camera.position.z, car.position.z + 6.5, 0.1);
-    camera.lookAt(car.position.x, car.position.y + 0.8, car.position.z - 2.5);
+    camera.position.z = THREE.MathUtils.lerp(camera.position.z, car.position.z - 6.5, 0.1);
+    camera.lookAt(car.position.x, car.position.y + 0.8, car.position.z + 2.5);
 
     const speedEl = document.getElementById('speed-val');
     const distEl = document.getElementById('dist-val');
