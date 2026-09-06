@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Endless Highway Car Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a0f00;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 30px;
+            color: #fff;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+            pointer-events: none;
+        }
+
+        .hud-card {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 10px 20px;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 40px;
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 15px;
+            pointer-events: auto;
+        }
+
+        .btn {
+            width: 75px;
+            height: 75px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            transition: background 0.1s, transform 0.1s;
+        }
+
+        .btn:active {
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(0.95);
+        }
+
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 30px 50px;
+            border-radius: 12px;
+            text-align: center;
+            color: white;
+            display: none;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        #game-over h1 { margin-top: 0; color: #ff4757; }
+        #game-over button {
+            padding: 10px 25px;
+            background: #2ed573;
+            border: none;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="hud">
+        <div class="hud-card">Speed: <span id="speed-val">0</span> km/h</div>
+        <div class="hud-card">Distance: <span id="dist-val">0</span> m</div>
+    </div>
+
+    <div id="controls">
+        <div class="control-group">
+            <div class="btn" id="btn-up">⬆️</div>
+            <div class="btn" id="btn-down">⬇️</div>
+        </div>
+        <div class="control-group">
+            <div class="btn" id="btn-left">⬅️</div>
+            <div class="btn" id="btn-right">➡️</div>
+        </div>
+    </div>
+
+    <div id="game-over">
+        <h1>CRASHED!</h1>
+        <p>You traveled <span id="final-dist">0</span> meters.</p>
+        <button onclick="restartGame()">Play Again</button>
+    </div>
+
+    <!-- Include Three.js via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, car;
+        let roadSegments = [];
+        let speed = 0, maxSpeed = 1.2, acceleration = 0.005, deceleration = 0.01;
+        let distance = 0;
+        let isGameOver = false;
+        
+        const keys = { up: false, down: false, left: false, right: false };
+
+        init();
+        animate();
+
+        function init() {
+            // Scene & Fog (Sunset Desert Vibe)
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xffb366);
+            scene.fog = new THREE.FogExp2(0xffb366, 0.015);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xfff0e6, 0.8);
+            sunLight.position.set(50, 100, 50);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            scene.add(sunLight);
+
+            // Create Desert Ground
+            const groundGeo = new THREE.PlaneGeometry(2000, 2000);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0xd2a679, roughness: 0.9 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -0.1;
+            scene.add(ground);
+
+            // Build Initial Road Segments
+            for (let i = 0; i < 15; i++) {
+                createRoadSegment(-i * 40);
+            }
+
+            // Create Player Car
+            createCar();
+
+            // Event Listeners for Keyboard & Touch
+            setupControls();
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function createRoadSegment(zPos) {
+            const roadGroup = new THREE.Group();
+            
+            // Asphalt
+            const roadGeo = new THREE.PlaneGeometry(16, 40);
+            const roadMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
+            const road = new THREE.Mesh(roadGeo, roadMat);
+            road.rotation.x = -Math.PI / 2;
+            road.receiveShadow = true;
+            roadGroup.add(road);
+
+            // Center Lane Marking
+            const lineGeo = new THREE.PlaneGeometry(0.4, 40);
+            const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const line = new THREE.Mesh(lineGeo, lineMat);
+            line.rotation.x = -Math.PI / 2;
+            line.position.y = 0.01;
+            roadGroup.add(line);
+
+            // Railings
+            const railGeo = new THREE.BoxGeometry(0.5, 1, 40);
+            const railMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8 });
+            
+            const leftRail = new THREE.Mesh(railGeo, railMat);
+            leftRail.position.set(-8.2, 0.5, 0);
+            leftRail.castShadow = true;
+            roadGroup.add(leftRail);
+
+            const rightRail = new THREE.Mesh(railGeo, railMat);
+            rightRail.position.set(8.2, 0.5, 0);
+            rightRail.castShadow = true;
+            roadGroup.add(rightRail);
+
+            roadGroup.position.z = zPos;
+            scene.add(roadGroup);
+            roadSegments.push(roadGroup);
+        }
+
+        function createCar() {
+            car = new THREE.Group();
+
+            // Car Body
+            const bodyGeo = new THREE.BoxGeometry(2, 0.8, 4);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff3838, roughness: 0.3, metalness: 0.6 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.6;
+            body.castShadow = true;
+            car.add(body);
+
+            // Car Cabin
+            const cabinGeo = new THREE.BoxGeometry(1.6, 0.6, 2);
+            const cabinMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 });
+            const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+            cabin.position.set(0, 1.2, -0.2);
+            cabin.castShadow = true;
+            car.add(cabin);
+
+            car.position.set(0, 0, 0);
+            scene.add(car);
+        }
+
+        function setupControls() {
+            const bindButton = (id, keyName) => {
+                const el = document.getElementById(id);
+                el.addEventListener('mousedown', () => keys[keyName] = true);
+                el.addEventListener('mouseup', () => keys[keyName] = false);
+                el.addEventListener('mouseleave', () => keys[keyName] = false);
+                el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyName] = true; });
+                el.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyName] = false; });
+            };
+
+            bindButton('btn-up', 'up');
+            bindButton('btn-down', 'down');
+            bindButton('btn-left', 'left');
+            bindButton('btn-right', 'right');
+
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowUp' || e.key === 'w') keys.up = true;
+                if (e.key === 'ArrowDown' || e.key === 's') keys.down = true;
+                if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+                if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+            });
+
+            window.addEventListener('keyup', (e) => {
+                if (e.key === 'ArrowUp' || e.key === 'w') keys.up = false;
+                if (e.key === 'ArrowDown' || e.key === 's') keys.down = false;
+                if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+                if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+            });
+        }
+
+        function animate() {
+            if (isGameOver) return;
+
+            requestAnimationFrame(animate);
+
+            // Handle Acceleration & Speed
+            if (keys.up) {
+                speed = Math.min(speed + acceleration, maxSpeed);
+            } else if (keys.down) {
+                speed = Math.max(speed - deceleration * 2, 0);
+            } else {
+                speed = Math.max(speed - deceleration, 0);
+            }
+
+            // Handle Steering
+            if (keys.left && car.position.x > -7) {
+                car.position.x -= 0.12;
+                car.rotation.z = 0.05;
+            } else if (keys.right && car.position.x < 7) {
+                car.position.x += 0.12;
+                car.rotation.z = -0.05;
+            } else {
+                car.rotation.z *= 0.8;
+            }
+
+            // Move Road Forward
+            if (speed > 0) {
+                distance += Math.round(speed * 10);
+                roadSegments.forEach(segment => {
+                    segment.position.z += speed;
+                });
+
+                // Recycle road segments
+                roadSegments.forEach(segment => {
+                    if (segment.position.z > 20) {
+                        const furthestZ = Math.min(...roadSegments.map(s => s.position.z));
+                        segment.position.z = furthestZ - 40;
+                    }
+                });
+            }
+
+            // Smooth Camera Follow
+            camera.position.x = car.position.x * 0.5;
+            camera.position.y = THREE.MathUtils.lerp(camera.position.y, car.position.y + 3.5, 0.1);
+            camera.position.z = THREE.MathUtils.lerp(camera.position.z, car.position.z + 7, 0.1);
+            camera.lookAt(car.position.x, car.position.y + 1, car.position.z - 2);
+
+            // Update HUD
+            document.getElementById('speed-val').innerText = Math.round(speed * 150);
+            document.getElementById('dist-val').innerText = distance;
+
+            renderer.render(scene, camera);
+        }
+
+        function gameOver() {
+            isGameOver = true;
+            document.getElementById('final-dist').innerText = distance;
+            document.getElementById('game-over').style.display = 'block';
+        }
+
+        function restartGame() {
+            isGameOver = false;
+            speed = 0;
+            distance = 0;
+            car.position.set(0, 0, 0);
+            document.getElementById('game-over').style.display = 'none';
+            animate();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>
+
