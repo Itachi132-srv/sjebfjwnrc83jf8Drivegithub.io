@@ -10,7 +10,7 @@ const keys = { up: false, down: false, left: false, right: false };
 // Sound Effects setup
 const carSound = new Audio('car.mp3');
 carSound.loop = true;
-carSound.volume = 0.5;
+carSound.volume = 0.6;
 
 const breakSound = new Audio('break.mp3');
 breakSound.volume = 0.7;
@@ -149,7 +149,8 @@ function createCar() {
                 }
             });
 
-            object.rotation.y = Math.PI; 
+            // Rotation 0 taake car samne ki taraf munh karke chale (peeche se view aaye)
+            object.rotation.y = 0; 
             object.scale.set(1.2, 1.2, 1.2);
             object.position.set(0, 0, 0);
             car.add(object);
@@ -174,8 +175,7 @@ function setupControls() {
             keys[keyName] = true; 
             el.classList.add('active'); 
 
-            // Browser audio restriction ko unlock karne ke liye user interaction par play call karna zaroori hai
-            if (carSound.paused && speed > 0) {
+            if (carSound.paused) {
                 carSound.play().catch(() => {});
             }
         };
@@ -218,12 +218,10 @@ function animate() {
 
     requestAnimationFrame(animate);
 
-    // Acceleration & Sound Handling
     if (keys.up) {
         speed = Math.min(speed + acceleration, maxSpeed);
     } else if (keys.down) {
         speed = Math.max(speed - deceleration * 2, 0);
-        // Play break sound when braking
         if (breakSound.paused && speed > 0.1) {
             breakSound.currentTime = 0;
             breakSound.play().catch(() => {});
@@ -232,23 +230,23 @@ function animate() {
         speed = Math.max(speed - deceleration, 0);
     }
 
-    // Handle Car Engine Sound State & Pitch based on Speed
-    if (speed > 0.05) {
+    // Engine sound continuous playback & pitch tuning
+    if (speed > 0.02) {
         if (carSound.paused) {
             carSound.play().catch(() => {});
         }
-        carSound.playbackRate = 0.7 + (speed / maxSpeed) * 0.8;
+        carSound.playbackRate = 0.7 + (speed / maxSpeed) * 0.9;
     } else {
         carSound.pause();
     }
 
-    // Steering & smooth banking tilt physics
-    if (keys.left && car.position.x < 7) {
-        car.position.x += 0.18;
-        targetCarRotationZ = -0.1;
-    } else if (keys.right && car.position.x > -7) {
+    // Correct steering directions
+    if (keys.left && car.position.x > -7) {
         car.position.x -= 0.18;
         targetCarRotationZ = 0.1;
+    } else if (keys.right && car.position.x < 7) {
+        car.position.x += 0.18;
+        targetCarRotationZ = -0.1;
     } else {
         targetCarRotationZ = 0;
     }
@@ -273,10 +271,11 @@ function animate() {
     camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, 0.1);
     camera.updateProjectionMatrix();
 
+    // Camera perfectly positioned behind the car
     camera.position.x = car.position.x * 0.4;
     camera.position.y = THREE.MathUtils.lerp(camera.position.y, car.position.y + 3.2, 0.1);
-    camera.position.z = THREE.MathUtils.lerp(camera.position.z, car.position.z - 6.5, 0.1);
-    camera.lookAt(car.position.x, car.position.y + 0.8, car.position.z + 2.5);
+    camera.position.z = THREE.MathUtils.lerp(camera.position.z, car.position.z + 6.5, 0.1);
+    camera.lookAt(car.position.x, car.position.y + 0.8, car.position.z - 2.5);
 
     const speedEl = document.getElementById('speed-val');
     const distEl = document.getElementById('dist-val');
@@ -311,3 +310,4 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
+
