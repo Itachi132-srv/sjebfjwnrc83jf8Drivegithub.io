@@ -53,7 +53,7 @@
             pointer-events: auto;
         }
 
-        /* Cool Modern Glassmorphism Buttons */
+        /* Cool Glassmorphism Buttons */
         .btn {
             width: 80px;
             height: 80px;
@@ -130,8 +130,10 @@
         <button onclick="restartGame()">Play Again</button>
     </div>
 
-    <!-- Include Three.js via CDN -->
+    <!-- Include Three.js & OBJLoader via CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    
     <script>
         let scene, camera, renderer, car;
         let roadSegments = [];
@@ -154,7 +156,7 @@
             // Camera
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-            // Renderer with Better Graphics & Tone Mapping
+            // Renderer with Tone Mapping for Cinematic Look
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
@@ -187,7 +189,7 @@
                 createRoadSegment(-i * 40);
             }
 
-            // Create Player Car (Placeholder - replace with GLTFLoader if using your own model)
+            // Load Custom Car Model (.obj)
             createCar();
 
             // Event Listeners for Keyboard & Touch
@@ -235,22 +237,28 @@
 
         function createCar() {
             car = new THREE.Group();
+            
+            const loader = new THREE.OBJLoader();
+            loader.load('sdxmustang.obj', function (object) {
+                object.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                        // Stylish glossy material for the car
+                        child.material = new THREE.MeshStandardMaterial({ 
+                            color: 0xff3838, 
+                            roughness: 0.2, 
+                            metalness: 0.8 
+                        });
+                    }
+                });
 
-            // Temporary Car Body
-            const bodyGeo = new THREE.BoxGeometry(2, 0.8, 4);
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff3838, roughness: 0.3, metalness: 0.6 });
-            const body = new THREE.Mesh(bodyGeo, bodyMat);
-            body.position.y = 0.6;
-            body.castShadow = true;
-            car.add(body);
-
-            // Car Cabin
-            const cabinGeo = new THREE.BoxGeometry(1.6, 0.6, 2);
-            const cabinMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 });
-            const cabin = new THREE.Mesh(cabinGeo, cabinMat);
-            cabin.position.set(0, 1.2, -0.2);
-            cabin.castShadow = true;
-            car.add(cabin);
+                object.scale.set(1, 1, 1); // Agar car bari ya choti ho toh yahan change kar sakte hain
+                object.position.set(0, 0, 0);
+                car.add(object);
+            }, undefined, function (error) {
+                console.error('Car load karne mein error aya:', error);
+            });
 
             car.position.set(0, 0, 0);
             scene.add(car);
@@ -303,15 +311,14 @@
             // Smooth Steering & Car Tilt (Banking effect)
             if (keys.left && car.position.x > -7) {
                 car.position.x -= 0.15;
-                targetCarRotationZ = 0.08; // Tilt left
+                targetCarRotationZ = 0.08;
             } else if (keys.right && car.position.x < 7) {
                 car.position.x += 0.15;
-                targetCarRotationZ = -0.08; // Tilt right
+                targetCarRotationZ = -0.08;
             } else {
                 targetCarRotationZ = 0;
             }
 
-            // Smoothly lerp car rotation for realistic banking
             car.rotation.z = THREE.MathUtils.lerp(car.rotation.z, targetCarRotationZ, 0.15);
 
             // Move Road Forward
