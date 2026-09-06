@@ -14,6 +14,55 @@
             -webkit-user-select: none;
         }
 
+        /* Start Menu / Color Picker Screen */
+        #start-menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            color: white;
+        }
+
+        #start-menu h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+            color: #ffaa00;
+            text-shadow: 0 2px 10px rgba(255,170,0,0.5);
+        }
+
+        #start-menu p {
+            font-size: 18px;
+            margin-bottom: 30px;
+            color: #ccc;
+        }
+
+        .color-options {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .color-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 3px solid white;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .color-btn:hover {
+            transform: scale(1.15);
+            box-shadow: 0 0 15px white;
+        }
+
         #hud {
             position: absolute;
             top: 20px;
@@ -26,6 +75,7 @@
             font-weight: bold;
             text-shadow: 0 2px 4px rgba(0,0,0,0.6);
             pointer-events: none;
+            display: none; /* Game shuru hone par show hoga */
         }
 
         .hud-card {
@@ -45,6 +95,7 @@
             padding: 0 40px;
             box-sizing: border-box;
             pointer-events: none;
+            display: none; /* Game shuru hone par show hoga */
         }
 
         .control-group {
@@ -53,7 +104,6 @@
             pointer-events: auto;
         }
 
-        /* Cool Glassmorphism Buttons */
         .btn {
             width: 80px;
             height: 80px;
@@ -90,6 +140,7 @@
             color: white;
             display: none;
             border: 1px solid rgba(255,255,255,0.2);
+            z-index: 10;
         }
 
         #game-over h1 { margin-top: 0; color: #ff4757; }
@@ -107,6 +158,19 @@
     </style>
 </head>
 <body>
+
+    <!-- Start Menu with Color Picker -->
+    <div id="start-menu">
+        <h1>CHOOSE CAR COLOR</h1>
+        <p>Select your favorite color to start driving</p>
+        <div class="color-options">
+            <div class="color-btn" style="background: #ff3838;" onclick="startGame(0xff3838)"></div>
+            <div class="color-btn" style="background: #3867d6;" onclick="startGame(0x3867d6)"></div>
+            <div class="color-btn" style="background: #2ed573;" onclick="startGame(0x2ed573)"></div>
+            <div class="color-btn" style="background: #ffa502;" onclick="startGame(0xffa502)"></div>
+            <div class="color-btn" style="background: #2f3640;" onclick="startGame(0x2f3640)"></div>
+        </div>
+    </div>
 
     <div id="hud">
         <div class="hud-card">Speed: <span id="speed-val">0</span> km/h</div>
@@ -127,7 +191,7 @@
     <div id="game-over">
         <h1>CRASHED!</h1>
         <p>You traveled <span id="final-dist">0</span> meters.</p>
-        <button onclick="restartGame()">Play Again</button>
+        <button onclick="resetGame()">Play Again</button>
     </div>
 
     <!-- Include Three.js & OBJLoader via CDN -->
@@ -141,11 +205,23 @@
         let distance = 0;
         let isGameOver = false;
         let targetCarRotationZ = 0;
-        
+        let gameStarted = false;
+        let chosenCarColor = 0xff3838; // Default color
+
         const keys = { up: false, down: false, left: false, right: false };
 
-        init();
-        animate();
+        function startGame(colorHex) {
+            chosenCarColor = colorHex;
+            document.getElementById('start-menu').style.display = 'none';
+            document.getElementById('hud').style.display = 'flex';
+            document.getElementById('controls').style.display = 'flex';
+            
+            if (!scene) {
+                init();
+            }
+            gameStarted = true;
+            animate();
+        }
 
         function init() {
             // Scene & Fog (Sunset Desert Vibe)
@@ -189,7 +265,7 @@
                 createRoadSegment(-i * 40);
             }
 
-            // Load Custom Car Model (.obj)
+            // Load Custom Car Model (.obj) with Chosen Color
             createCar();
 
             // Event Listeners for Keyboard & Touch
@@ -200,7 +276,6 @@
         function createRoadSegment(zPos) {
             const roadGroup = new THREE.Group();
             
-            // Asphalt
             const roadGeo = new THREE.PlaneGeometry(16, 40);
             const roadMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
             const road = new THREE.Mesh(roadGeo, roadMat);
@@ -208,7 +283,6 @@
             road.receiveShadow = true;
             roadGroup.add(road);
 
-            // Center Lane Marking
             const lineGeo = new THREE.PlaneGeometry(0.4, 40);
             const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
             const line = new THREE.Mesh(lineGeo, lineMat);
@@ -216,7 +290,6 @@
             line.position.y = 0.01;
             roadGroup.add(line);
 
-            // Railings
             const railGeo = new THREE.BoxGeometry(0.5, 1, 40);
             const railMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8 });
             
@@ -244,16 +317,16 @@
                     if (child.isMesh) {
                         child.castShadow = true;
                         child.receiveShadow = true;
-                        // Stylish glossy material for the car
+                        // Player ke choose kiye hue color ko apply karein
                         child.material = new THREE.MeshStandardMaterial({ 
-                            color: 0xff3838, 
+                            color: chosenCarColor, 
                             roughness: 0.2, 
                             metalness: 0.8 
                         });
                     }
                 });
 
-                object.scale.set(1, 1, 1); // Agar car bari ya choti ho toh yahan change kar sakte hain
+                object.scale.set(1, 1, 1);
                 object.position.set(0, 0, 0);
                 car.add(object);
             }, undefined, function (error) {
@@ -295,11 +368,10 @@
         }
 
         function animate() {
-            if (isGameOver) return;
+            if (!gameStarted || isGameOver) return;
 
             requestAnimationFrame(animate);
 
-            // Speed Control
             if (keys.up) {
                 speed = Math.min(speed + acceleration, maxSpeed);
             } else if (keys.down) {
@@ -308,7 +380,6 @@
                 speed = Math.max(speed - deceleration, 0);
             }
 
-            // Smooth Steering & Car Tilt (Banking effect)
             if (keys.left && car.position.x > -7) {
                 car.position.x -= 0.15;
                 targetCarRotationZ = 0.08;
@@ -321,7 +392,6 @@
 
             car.rotation.z = THREE.MathUtils.lerp(car.rotation.z, targetCarRotationZ, 0.15);
 
-            // Move Road Forward
             if (speed > 0) {
                 distance += Math.round(speed * 10);
                 roadSegments.forEach(segment => {
@@ -336,13 +406,11 @@
                 });
             }
 
-            // Smooth Camera Follow
             camera.position.x = car.position.x * 0.5;
             camera.position.y = THREE.MathUtils.lerp(camera.position.y, car.position.y + 3.5, 0.1);
             camera.position.z = THREE.MathUtils.lerp(camera.position.z, car.position.z + 7, 0.1);
             camera.lookAt(car.position.x, car.position.y + 1, car.position.z - 2);
 
-            // Update HUD
             document.getElementById('speed-val').innerText = Math.round(speed * 150);
             document.getElementById('dist-val').innerText = distance;
 
@@ -355,7 +423,7 @@
             document.getElementById('game-over').style.display = 'block';
         }
 
-        function restartGame() {
+        function resetGame() {
             isGameOver = false;
             speed = 0;
             distance = 0;
@@ -365,6 +433,7 @@
         }
 
         function onWindowResize() {
+            if (!camera || !renderer) return;
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
